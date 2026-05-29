@@ -260,8 +260,7 @@ tr:nth-child(even) td{background:rgba(255,255,255,.035)}
       <div class="field"><label>Tipo de Operação</label><select id="fTipoOperacao"></select></div>
     </div>
     <div class="infoBox">
-      <strong>Performance Operacional AC Camargo:</strong> consolidação das linhas capturadas nas bases de Março e Abril, com competência definida pela coluna <strong>Dt.Solicitação</strong>. 
-      Os indicadores de tempo de espera desconsideram o departamento <strong>Rota Fixa</strong>. Correções aplicadas: <strong>U.I. 6º Andar-Tamandaré = 7min 55s</strong> e <strong>Desp. Estruturais-CIPE = 7min 51s</strong>.
+      <strong>Performance Operacional AC Camargo:</strong> painel executivo alimentado por base operacional e base SPOT em Google Sheets, com atualização automatizada via GitHub Actions. A competência é definida pela coluna <strong>Data</strong>/<strong>Dt.Solicitação</strong>. Os indicadores de tempo de espera desconsideram o departamento <strong>Rota Fixa</strong>.
     </div>
   </section>
 
@@ -563,7 +562,6 @@ function renderOperational(){
   renderCards('operationalCards',[
     card('Total de Serviços', fmtNumber(ops.length), 'Volume operacional filtrado'),
     card('Concluídos', fmtNumber(concl), `${fmtDecimal(taxa,1)}% de conclusão`),
-    card('Ocorrências / Atrasos', fmtNumber(ops.filter(r=>!/conclu/i.test(r.status)).length), 'Registros diferentes de concluído'),
     card('Endereços Atendidos', fmtNumber(sum(ops,'quantidadeEndereco')), 'Soma de endereços nas rotas'),
     card('Distância Média', fmtKm(ops.length?sum(ops,'distancia')/ops.length:0), 'Por serviço'),
     card('Tempo Médio Percurso', fmtSec(avg(ops,'tempoPercursoSec')), 'Por serviço')

@@ -1,0 +1,1 @@
+# Sem dependências externas: o build usa apenas a biblioteca padrão do Python.

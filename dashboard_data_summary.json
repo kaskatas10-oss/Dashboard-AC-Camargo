@@ -1,0 +1,14 @@
+{
+  "updated_utc": "2026-05-29T20:30:32.923933Z",
+  "performance_url_configured": true,
+  "spot_url_configured": true,
+  "operational_rows": 1,
+  "spot_rows": 0,
+  "months_operational": [
+    "Maio"
+  ],
+  "months_spot": [],
+  "vehicle_types": [
+    "Moto"
+  ]
+}

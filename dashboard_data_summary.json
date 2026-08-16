@@ -1,23 +1,27 @@
 {
-  "updated_utc": "2026-08-15T03:33:03.131785Z",
+  "updated_utc": "2026-08-16T03:42:08.536847Z",
   "performance_url_configured": true,
   "spot_url_configured": true,
-  "operational_rows": 8792,
+  "operational_rows": 9088,
   "spot_rows": 0,
   "months_operational": [
     "Abril",
+    "Agosto",
+    "Agosto/2026",
     "Fevereiro",
     "Julho",
+    "Julho/2026",
     "Junho",
     "Maio",
     "Março",
-    "Não informado"
+    "agosto",
+    "julho",
+    "junho"
   ],
   "months_spot": [],
   "vehicle_types": [
     "Caminhão",
     "Carro",
-    "Moto",
-    "Não informado"
+    "Moto"
   ]
 }

@@ -1,27 +1,30 @@
 {
-  "updated_utc": "2026-08-16T03:42:08.536847Z",
+  "updated_utc": "2026-08-17T03:43:27.722677Z",
   "performance_url_configured": true,
   "spot_url_configured": true,
-  "operational_rows": 9088,
-  "spot_rows": 0,
+  "operational_rows": 9107,
+  "spot_rows": 2073,
   "months_operational": [
     "Abril",
     "Agosto",
-    "Agosto/2026",
     "Fevereiro",
     "Julho",
-    "Julho/2026",
     "Junho",
     "Maio",
     "Março",
     "agosto",
-    "julho",
-    "junho"
+    "julho"
   ],
-  "months_spot": [],
+  "months_spot": [
+    "Agosto/2026",
+    "Julho/2026",
+    "Junho/2026",
+    "Maio/2026"
+  ],
   "vehicle_types": [
     "Caminhão",
     "Carro",
-    "Moto"
+    "Moto",
+    "Não informado"
   ]
 }

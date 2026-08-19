@@ -1,5 +1,5 @@
 {
-  "updated_utc": "2026-08-18T03:38:48.227238Z",
+  "updated_utc": "2026-08-19T03:40:32.782332Z",
   "performance_url_configured": true,
   "spot_url_configured": true,
   "operational_rows": 9107,
@@ -22,7 +22,6 @@
   "vehicle_types": [
     "Caminhão",
     "Carro",
-    "Moto",
-    "Não informado"
+    "Moto"
   ]
 }

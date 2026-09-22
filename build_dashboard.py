@@ -6,13 +6,13 @@ Gera o dashboard AC Camargo a partir de duas abas publicadas do Google Sheets em
 - BASE_SPOT: serviços SPOT/exclusivos
 
 Uso local:
-  python build_dashboard.py
+    python build_dashboard.py
 
 Variáveis opcionais:
-  SHEET_PERFORMANCE_CSV_URL
-  SHEET_SPOT_CSV_URL
-  DASHBOARD_TEMPLATE
-  DASHBOARD_OUTPUT
+    SHEET_PERFORMANCE_CSV_URL
+    SHEET_SPOT_CSV_URL
+    DASHBOARD_TEMPLATE
+    DASHBOARD_OUTPUT
 """
 from __future__ import annotations
 
@@ -34,6 +34,14 @@ SPOT_URL = os.getenv("SHEET_SPOT_CSV_URL", DEFAULT_SPOT_URL).strip()
 TEMPLATE_PATH = os.getenv("DASHBOARD_TEMPLATE", "template_dashboard.html")
 OUTPUT_PATH = os.getenv("DASHBOARD_OUTPUT", "index.html")
 SUMMARY_PATH = os.getenv("DASHBOARD_SUMMARY", "dashboard_data_summary.json")
+
+# Nomes canônicos dos meses em pt-BR, usados tanto para calcular o rótulo
+# "Mês/Ano" a partir da Data quanto para validar/normalizar um valor que
+# venha preenchido manualmente na planilha na coluna "Mês".
+MESES_PT = [
+    "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+    "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
+]
 
 
 def log(msg: str) -> None:
@@ -89,7 +97,10 @@ def pick(row: Dict[str, str], *names: str, default: str = "") -> str:
 
 
 def normalize_key(s: str) -> str:
-    repl = str.maketrans("áàãâäéèêëíìîïóòõôöúùûüçÁÀÃÂÄÉÈÊËÍÌÎÏÓÒÕÔÖÚÙÛÜÇ", "aaaaaeeeeiiiiooooouuuucAAAAAEEEEIIIIOOOOOUUUUC")
+    repl = str.maketrans(
+        "áàãâäéèêëíìîïóòõôöúùûüçÁÀÃÂÄÉÈÊËÍÌÎÏÓÒÕÔÖÚÙÛÜÇ",
+        "aaaaaeeeeiiiiooooouuuucAAAAAEEEEIIIIOOOOOUUUUC",
+    )
     return re.sub(r"[^a-z0-9]+", "", str(s).translate(repl).lower())
 
 
@@ -135,17 +146,56 @@ def parse_date(value: str) -> str:
     return s
 
 
-def infer_month(data: str, mes: str = "") -> str:
-    mes = str(mes or "").strip()
-    if mes:
-        return mes
+def compute_month_from_date(data: str) -> str:
+    """Calcula o rótulo padrão 'Mês/Ano' (ex.: 'Agosto/2026') a partir da Data.
+
+    Retorna 'Não informado' quando a Data não pôde ser interpretada.
+    """
     data = parse_date(data)
     try:
         dt = datetime.strptime(data, "%Y-%m-%d")
-        nomes = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"]
-        return f"{nomes[dt.month-1]}/{dt.year}"
+        return f"{MESES_PT[dt.month - 1]}/{dt.year}"
     except Exception:
         return "Não informado"
+
+
+def infer_month(data: str, mes: str = "") -> str:
+    """Determina o rótulo de mês/ano usado em todos os indicadores do painel.
+
+    CORREÇÃO: antes, um valor manual da coluna "Mês"/"Mes" da planilha era
+    aceito literalmente, sem validar o formato. Isso permitia que a base
+    operacional acumulasse rótulos como "abril" ou "agosto" (minúsculo, sem
+    ano), incompatíveis com o padrão "Mês/Ano" usado pela base SPOT e
+    esperado pelos gráficos e pelo comparativo mensal do Resumo Executivo —
+    causando os indicadores "Comparativo de Serviços por Mês" e "Tempo Médio
+    de Espera por Mês" zerados.
+
+    Agora, um valor manual só é aceito se estiver no padrão "Mês/Ano" (ex.:
+    "Agosto/2026") com um mês reconhecido; a capitalização é normalizada.
+    Qualquer outro formato é descartado e o mês é recalculado a partir da
+    coluna Data, garantindo consistência com a base SPOT.
+    """
+    mes = str(mes or "").strip()
+    if mes:
+        match = re.match(r"^([A-Za-zÀ-ÿ]+)\s*/\s*(\d{4})$", mes)
+        if match:
+            nome_raw, ano = match.group(1), match.group(2)
+            nomes_norm = [normalize_key(m) for m in MESES_PT]
+            nome_norm = normalize_key(nome_raw)
+            if nome_norm in nomes_norm:
+                nome_padronizado = MESES_PT[nomes_norm.index(nome_norm)]
+                return f"{nome_padronizado}/{ano}"
+        # Valor manual fora do padrão esperado: ignora e recalcula pela Data
+        # em vez de propagar um rótulo incompatível para o restante do painel.
+        calculado = compute_month_from_date(data)
+        if calculado != "Não informado":
+            log(f"Aviso: valor de Mês fora do padrão ('{mes}') ignorado; recalculado como '{calculado}' a partir da Data.")
+            return calculado
+        # Sem Data válida também: mantém o texto original, ao menos capitalizado,
+        # em vez de propagar algo em minúsculo/formato solto.
+        log(f"Aviso: valor de Mês fora do padrão ('{mes}') e Data inválida; mantendo texto original capitalizado.")
+        return mes.strip().capitalize()
+    return compute_month_from_date(data)
 
 
 def parse_duration_seconds(value: str, *, is_wait: bool = False) -> int:
@@ -197,6 +247,7 @@ def infer_tipo_veiculo(veiculo: str, rota: str = "", tipo: str = "") -> Tuple[st
     else:
         tipo_limpo = tipo_original or "Não informado"
         veiculo_original = veiculo_original or "Não informado"
+
     # Normaliza algumas variações na classificação agregada
     low = tipo_limpo.lower()
     if "moto" in low:
@@ -212,25 +263,32 @@ def normalize_operational(row: Dict[str, str], source_fallback: str, idx: int) -
     tipo_reg = pick(row, "Tipo Registro", default="Operacional").lower()
     if tipo_reg and "spot" in tipo_reg:
         return None
+
     data = parse_date(pick(row, "Data", "Dt.Solicitação", "Dt. Solicitação", "Dt.Solicitacao"))
     mes = infer_month(data, pick(row, "Mês", "Mes"))
+
     veiculo_raw = pick(row, "Veículo", "Veiculo")
     rota = pick(row, "Rota", "Nome Rota Fixa", "Nome da Rota Fixa")
     tipo_veiculo_raw = pick(row, "Tipo Veículo", "Tipo de Veículo", "Tipo Veiculo")
     veiculo, tipo_veiculo = infer_tipo_veiculo(veiculo_raw, rota, tipo_veiculo_raw)
+
     departamento = pick(row, "Departamento", "Setor", default="Não informado") or "Não informado"
+
     espera_sec = parse_int(pick(row, "Tempo Espera Segundos", "Tempo de Espera Segundos", "Espera Segundos"))
     if not espera_sec:
         espera_sec = parse_duration_seconds(pick(row, "Tempo Espera", "Tempo de Espera", "Espera"), is_wait=True)
+
     # Correções solicitadas por Roberto após validação operacional.
     dep_norm = normalize_key(departamento)
     if dep_norm == normalize_key("U.I. 6º Andar-Tamandaré") and espera_sec > 20 * 60:
         espera_sec = 7 * 60 + 55
     if dep_norm == normalize_key("Desp. Estruturais-CIPE") and espera_sec > 20 * 60:
         espera_sec = 7 * 60 + 51
+
     percurso_sec = parse_int(pick(row, "Tempo Percurso Segundos", "Tempo de Percurso Segundos", "Percurso Segundos"))
     if not percurso_sec:
         percurso_sec = parse_duration_seconds(pick(row, "Tempo Percurso", "Tempo de Percurso", "Percurso"), is_wait=False)
+
     return {
         "mes": mes,
         "data": data,
@@ -238,7 +296,14 @@ def normalize_operational(row: Dict[str, str], source_fallback: str, idx: int) -
         "os": pick(row, "OS", "Ordem de Serviço", "Ordem Servico"),
         "veiculo": veiculo,
         "tipoVeiculo": tipo_veiculo,
-        "tipoServico": pick(row, "Tipo Serviço", "Tipo de Serviço", "Tipo Servico"),
+        # CORREÇÃO: antes este campo não tinha valor padrão (ficava "" quando a
+        # coluna "Tipo Serviço"/"Tipo de Serviço" vinha vazia da planilha).
+        # Isso fazia o indicador "Serviços por Tipo de Serviço" jogar 100% dos
+        # registros em um único balde "Não informado" no front-end — e como
+        # esse balde único somava o total geral, o indicador parecia "repetir"
+        # o valor de "Volume por Status". Agora o padrão é aplicado aqui,
+        # igual aos demais campos categóricos (departamento, condutor, etc.).
+        "tipoServico": pick(row, "Tipo Serviço", "Tipo de Serviço", "Tipo Servico", default="Não informado") or "Não informado",
         "filial": pick(row, "Filial"),
         "cliente": pick(row, "Cliente"),
         "contato": pick(row, "Contato/Solicitante", "Contato", "Solicitante"),
@@ -272,10 +337,12 @@ def normalize_spot(row: Dict[str, str], source_fallback: str, idx: int) -> Dict[
     os_num = pick(row, "OS", "Ordem de Serviço", "Ordem Servico")
     if not any([data, solicitante, destino, origem, descricao, valor_total, valor_mercadoria, os_num]):
         return None
+
     veiculo_raw = pick(row, "Veículo", "Veiculo")
     rota = pick(row, "Rota", "Nome Rota Fixa")
     tipo_veiculo_raw = pick(row, "Tipo Veículo", "Tipo de Veículo", "Tipo Veiculo")
     veiculo, tipo_veiculo = infer_tipo_veiculo(veiculo_raw, rota, tipo_veiculo_raw)
+
     return {
         "mes": infer_month(data, pick(row, "Mês", "Mes")),
         "data": data,
@@ -338,6 +405,19 @@ def build() -> None:
     with open(OUTPUT_PATH, "w", encoding="utf-8") as f:
         f.write(html)
 
+    # NOVO: contagem de "Não informado" por campo-chave, para detectar rapidamente
+    # colunas da planilha que estão sendo deixadas em branco pelo coordenador de
+    # operações antes que isso vire um indicador quebrado no painel.
+    def count_nao_informado(rows: List[Dict[str, object]], field: str) -> int:
+        return sum(1 for r in rows if str(r.get(field, "")).strip().lower() in ("", "não informado", "nao informado"))
+
+    total_operacional = len(operational_rows) or 1
+    preenchimento = {
+        "departamento_nao_informado_pct": round(100 * count_nao_informado(operational_rows, "departamento") / total_operacional, 1),
+        "tipoServico_nao_informado_pct": round(100 * count_nao_informado(operational_rows, "tipoServico") / total_operacional, 1),
+        "condutor_nao_informado_pct": round(100 * count_nao_informado(operational_rows, "condutor") / total_operacional, 1),
+    }
+
     summary = {
         "updated_utc": datetime.utcnow().isoformat() + "Z",
         "performance_url_configured": bool(PERFORMANCE_URL),
@@ -347,11 +427,16 @@ def build() -> None:
         "months_operational": sorted({r.get("mes") for r in operational_rows}),
         "months_spot": sorted({r.get("mes") for r in spot_rows}),
         "vehicle_types": sorted({r.get("tipoVeiculo") for r in operational_rows}),
+        "qualidade_preenchimento": preenchimento,
     }
     with open(SUMMARY_PATH, "w", encoding="utf-8") as f:
         json.dump(summary, f, ensure_ascii=False, indent=2)
+
     log(f"Dashboard gerado em {OUTPUT_PATH}")
     log(f"Resumo gerado em {SUMMARY_PATH}")
+    for campo, pct in preenchimento.items():
+        if pct > 20:
+            log(f"ALERTA: {campo} = {pct}% dos registros sem preenchimento na planilha.")
 
 
 if __name__ == "__main__":

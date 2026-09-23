@@ -1,17 +1,17 @@
 {
-  "updated_utc": "2026-09-22T08:09:26.499263Z",
+  "updated_utc": "2026-09-23T08:11:54.766673Z",
   "performance_url_configured": true,
   "spot_url_configured": true,
   "operational_rows": 9107,
   "spot_rows": 2073,
   "months_operational": [
-    "abril",
-    "agosto",
-    "fevereiro",
-    "julho",
-    "junho",
-    "maio",
-    "março"
+    "abril/2026",
+    "agosto/2026",
+    "fevereiro/2026",
+    "julho/2026",
+    "junho/2026",
+    "maio/2026",
+    "março/2026"
   ],
   "months_spot": [
     "Agosto/2026",
